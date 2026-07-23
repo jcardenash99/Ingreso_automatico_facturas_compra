@@ -174,15 +174,6 @@ def mover_mouse(coord):
     time.sleep(PAUSA_CORTA)
 
 
-def triple_click(coord, pausa_entre_clics=0.3):
-    """Mueve el mouse a una coordenada y hace 3 clics izquierdos,
-    con una pausa entre cada uno."""
-    x, y = coord
-    pyautogui.moveTo(x, y, duration=0.3)
-    for _ in range(3):
-        pyautogui.click()
-        time.sleep(pausa_entre_clics)
-
 
 def pegar():
     pyautogui.hotkey("ctrl", "v")

@@ -239,8 +239,13 @@ def encabezado_usuario1(hoja, perfil, modo):
     time.sleep(0.2)
     enter()
 
-    triple_click(coord["casilla_fecha"])
-    copiar_desde_excel_y_pegar_en_siigo(hoja, perfil["fila_encabezado"], perfil["col_fecha"])
+    if modo == "nueva":
+        triple_click(coord["casilla_fecha"])
+        copiar_desde_excel_y_pegar_en_siigo(hoja, perfil["fila_encabezado"], perfil["col_fecha"])
+    else:
+        # En modo retomar no se vuelve a pegar la fecha: se asume que ya
+        # quedó correcta antes de la interrupción, solo se avanza el foco.
+        mover_y_click(coord["casilla_fecha"])
     tab()
 
     copiar_desde_excel_y_pegar_en_siigo(hoja, perfil["fila_encabezado"], perfil["col_prefijo"])
@@ -252,14 +257,17 @@ def encabezado_usuario1(hoja, perfil, modo):
     copiar_desde_excel_y_pegar_en_siigo(hoja, perfil["fila_encabezado"], perfil["col_proveedor"])
     time.sleep(3)
     enter()
-    tab(6)
-    enter()
-    tab(2)
+    if modo == "nueva":
+        tab(6)
+        enter()
+        tab(2)
+    else:
+        tab(8)
 
     print("✅ Encabezado de factura ingresado (Usuario 1). Listo para los ítems.")
 
 
-def item_primero_usuario1(hoja, fila, perfil):
+def item_primero_usuario1(hoja, fila, perfil, modo):
     copiar_desde_excel_y_pegar_en_siigo(hoja, fila, perfil["col_codigo"])
     time.sleep(2)
     enter()
@@ -267,7 +275,11 @@ def item_primero_usuario1(hoja, fila, perfil):
 
     copiar_desde_excel_y_pegar_en_siigo(hoja, fila, perfil["col_bodega"])
     time.sleep(1)
-    tab(3)
+    if modo == "nueva":
+        tab(3)
+    else:
+        enter()
+        tab(2)
 
     copiar_desde_excel_y_pegar_en_siigo(hoja, fila, perfil["col_cantidad"])
     tab(1)
@@ -300,7 +312,7 @@ def item_siguiente_usuario1(hoja, fila, perfil):
     manejar_iva(hoja, fila, perfil)
 
 
-def items_usuario1(hoja, perfil):
+def items_usuario1(hoja, perfil, modo):
     fila = perfil["fila_items_inicio"]
     primero = True
 
@@ -308,7 +320,7 @@ def items_usuario1(hoja, perfil):
         print(f"Ingresando ítem de la fila {fila}...")
 
         if primero:
-            item_primero_usuario1(hoja, fila, perfil)
+            item_primero_usuario1(hoja, fila, perfil, modo)
             primero = False
         else:
             item_siguiente_usuario1(hoja, fila, perfil)
@@ -382,7 +394,10 @@ def item_siguiente_usuario2(hoja, fila, perfil):
     manejar_iva(hoja, fila, perfil)
 
 
-def items_usuario2(hoja, perfil):
+def items_usuario2(hoja, perfil, modo=None):
+    # modo no afecta el flujo de ítems de Usuario 2 (siempre es el mismo
+    # patrón); se acepta el parámetro solo para tener la misma firma que
+    # items_usuario1 y poder llamarlas de forma genérica desde main.
     fila = perfil["fila_items_inicio"]
 
     while not celda_vacia(hoja, fila, perfil["col_codigo"]):
@@ -474,15 +489,22 @@ def elegir_modo():
 if __name__ == "__main__":
     print("=== Ingreso automático de facturas de compra - Siigo ===\n")
 
-    perfil = elegir_perfil()
-    modo = elegir_modo()
+    try:
+        perfil = elegir_perfil()
+        modo = elegir_modo()
 
-    print(f"\nUsuario: {perfil['nombre']}  |  Modo: {modo}")
-    print("Tienes 5 segundos para asegurarte de que Excel y Chrome/Siigo estén abiertos...")
-    time.sleep(5)
+        print(f"\nUsuario: {perfil['nombre']}  |  Modo: {modo}")
+        print("Tienes 5 segundos para asegurarte de que Excel y Chrome/Siigo estén abiertos...")
+        time.sleep(5)
 
-    hoja_excel = obtener_hoja_excel()
-    perfil["fn_encabezado"](hoja_excel, perfil, modo)
-    perfil["fn_items"](hoja_excel, perfil)
+        hoja_excel = obtener_hoja_excel()
+        perfil["fn_encabezado"](hoja_excel, perfil, modo)
+        perfil["fn_items"](hoja_excel, perfil, modo)
 
-    input("\nProceso terminado. Presiona Enter para cerrar esta ventana...")
+        print("\n✅ Proceso terminado sin errores.")
+    except Exception:
+        import traceback
+        print("\n❌ Ocurrió un error y el proceso se detuvo:\n")
+        traceback.print_exc()
+
+    input("\nPresiona Enter para cerrar esta ventana...")

@@ -290,8 +290,8 @@ def ingresar_encabezado_factura(hoja):
     enter()
 
     # 3. Fecha (requiere 3 clics, con pausa entre cada uno, antes de pegar)
-    triple_click(COORD["casilla_fecha"])
-    copiar_desde_excel_y_pegar_en_siigo(hoja, FILA_ENCABEZADO, COL_FECHA)
+    mover_y_click(COORD["casilla_fecha"])
+    #copiar_desde_excel_y_pegar_en_siigo(hoja, FILA_ENCABEZADO, COL_FECHA)
     tab()
 
     # 4. Prefijo factura
@@ -306,9 +306,7 @@ def ingresar_encabezado_factura(hoja):
     copiar_desde_excel_y_pegar_en_siigo(hoja, FILA_ENCABEZADO, COL_PROVEEDOR)
     time.sleep(3)
     enter()
-    tab(6)
-    enter()
-    tab(2)
+    tab(8)
 
     print("✅ Encabezado de factura ingresado. Listo para continuar con la tabla de ítems.")
 
@@ -344,7 +342,8 @@ def ingresar_primer_item(hoja, fila):
     # Bodega
     copiar_desde_excel_y_pegar_en_siigo(hoja, fila, COL_BODEGA)
     time.sleep(1)
-    tab(3)
+    enter()
+    tab(2)
 
     # Cantidad
     copiar_desde_excel_y_pegar_en_siigo(hoja, fila, COL_CANTIDAD)
@@ -396,11 +395,7 @@ def ingresar_items(hoja):
     while not celda_vacia(hoja, fila, COL_CODIGO):
         print(f"Ingresando ítem de la fila {fila}...")
 
-        if primero:
-            ingresar_primer_item(hoja, fila)
-            primero = False
-        else:
-            ingresar_item_siguiente(hoja, fila)
+        ingresar_item_siguiente(hoja, fila)
 
         # Al terminar el renglón, Enter deja el cursor en (columna 1, fila+1)
         ir_a_siigo()
