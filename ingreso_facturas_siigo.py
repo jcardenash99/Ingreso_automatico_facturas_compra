@@ -215,7 +215,7 @@ def manejar_iva(hoja, fila, perfil):
 # proveedor -> ítems (el primer ítem sí incluye bodega, los siguientes no).
 
 COORD_USUARIO_1 = {
-    "crear": (1372, 143),
+    "crear": (1623, 143),
     "factura_compra": (1183, 257),
     "casilla_tipo": (595, 383),
     "casilla_fecha": (635, 418),
@@ -340,7 +340,7 @@ def items_usuario1(hoja, perfil, modo):
 # ítems (nunca usa bodega; mismo patrón en todos los renglones).
 
 COORD_USUARIO_2 = {
-    "crear": (1400, 143),
+    "crear": (1623, 143),
     "factura_compra": (1166, 258),
     "casilla_fecha": (587, 386),
 }
