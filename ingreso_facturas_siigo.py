@@ -71,10 +71,14 @@ def proceso_ventana_activa():
 
 def alt_tab():
     pyautogui.keyDown("alt")
-    time.sleep(0.1)
-    pyautogui.press("tab")
-    time.sleep(0.1)
-    pyautogui.keyUp("alt")
+    try:
+        time.sleep(0.1)
+        pyautogui.press("tab")
+        time.sleep(0.1)
+    finally:
+        # 'finally' garantiza que Alt se suelte incluso si el 'failsafe'
+        # de pyautogui (mouse a la esquina) interrumpe el script aquí.
+        pyautogui.keyUp("alt")
     time.sleep(0.35)
 
 
@@ -335,13 +339,16 @@ def items_usuario1(hoja, perfil, modo):
 # =========================================================
 # USUARIO 2
 # =========================================================
-# Flujo: crear -> factura de compra -> casilla fecha (clic + tab, SIN
-# pegar fecha desde Excel) -> prefijo -> no. factura -> proveedor ->
-# ítems (nunca usa bodega; mismo patrón en todos los renglones).
+# Mismo algoritmo base que Usuario 1, con la diferencia de que en
+# "casilla tipo" hay que presionar flecha abajo 2 VECES (Usuario 1 solo
+# necesita 1). Se deja como función independiente y explícita (en vez de
+# reutilizar la de Usuario 1) para que sea fácil revisar y ajustar los
+# tabs de Usuario 2 aquí mismo, sin afectar a Usuario 1.
 
 COORD_USUARIO_2 = {
     "crear": (1623, 143),
     "factura_compra": (1166, 258),
+    "casilla_tipo": (595, 383),  # misma coordenada que Usuario 1
     "casilla_fecha": (587, 386),
 }
 
@@ -357,8 +364,21 @@ def encabezado_usuario2(hoja, perfil, modo):
     print("Esperando 5 seg a que cargue la página...")
     time.sleep(5)
 
-    mover_y_click(coord["casilla_fecha"])
-    tab()
+    mover_y_click(coord["casilla_tipo"])
+    if modo == "nueva":
+        pyautogui.press("down")
+        pyautogui.press("down")  # Usuario 2 necesita 2 flechas abajo (no 1)
+    time.sleep(0.2)
+    enter()
+
+    if modo == "nueva":
+        triple_click(coord["casilla_fecha"])
+        copiar_desde_excel_y_pegar_en_siigo(hoja, perfil["fila_encabezado"], perfil["col_fecha"])
+    else:
+        mover_y_click(coord["casilla_fecha"])
+    tab(2)
+    # 👆 Si a Usuario 2 le sigue faltando avanzar un campo más aquí,
+    # agrega otro "tab()" en esta línea (o "tab(2)" en vez de "tab()").
 
     copiar_desde_excel_y_pegar_en_siigo(hoja, perfil["fila_encabezado"], perfil["col_prefijo"])
     tab()
@@ -367,21 +387,32 @@ def encabezado_usuario2(hoja, perfil, modo):
     tab()
 
     copiar_desde_excel_y_pegar_en_siigo(hoja, perfil["fila_encabezado"], perfil["col_proveedor"])
-    time.sleep(1)
+    time.sleep(3)
     enter()
-    tab(6)
-    enter()
-    tab(2)
+    if modo == "nueva":
+        tab(6)
+        enter()
+        tab(2)
+    else:
+        tab(8)
 
     print("✅ Encabezado de factura ingresado (Usuario 2). Listo para los ítems.")
 
 
-def item_siguiente_usuario2(hoja, fila, perfil):
+def item_primero_usuario2(hoja, fila, perfil, modo):
     copiar_desde_excel_y_pegar_en_siigo(hoja, fila, perfil["col_codigo"])
-    time.sleep(1)
+    time.sleep(2)
     enter()
-
     tab(4)
+
+    copiar_desde_excel_y_pegar_en_siigo(hoja, fila, perfil["col_bodega"])
+    time.sleep(1)
+    if modo == "nueva":
+        tab(3)
+    else:
+        enter()
+        tab(2)
+
     copiar_desde_excel_y_pegar_en_siigo(hoja, fila, perfil["col_cantidad"])
     tab(1)
 
@@ -394,16 +425,37 @@ def item_siguiente_usuario2(hoja, fila, perfil):
     manejar_iva(hoja, fila, perfil)
 
 
-def items_usuario2(hoja, perfil, modo=None):
-    # modo no afecta el flujo de ítems de Usuario 2 (siempre es el mismo
-    # patrón); se acepta el parámetro solo para tener la misma firma que
-    # items_usuario1 y poder llamarlas de forma genérica desde main.
+def item_siguiente_usuario2(hoja, fila, perfil):
+    copiar_desde_excel_y_pegar_en_siigo(hoja, fila, perfil["col_codigo"])
+    time.sleep(1)
+    enter()
+
+    shift_tab(1)
+    tab(1)
+    copiar_desde_excel_y_pegar_en_siigo(hoja, fila, perfil["col_cantidad"])
+    tab(1)
+
+    copiar_desde_excel_y_pegar_en_siigo(hoja, fila, perfil["col_precio"])
+    tab(1)
+
+    copiar_desde_excel_y_pegar_en_siigo(hoja, fila, perfil["col_descuento"])
+    tab(1)
+
+    manejar_iva(hoja, fila, perfil)
+
+
+def items_usuario2(hoja, perfil, modo):
     fila = perfil["fila_items_inicio"]
+    primero = True
 
     while not celda_vacia(hoja, fila, perfil["col_codigo"]):
         print(f"Ingresando ítem de la fila {fila}...")
 
-        item_siguiente_usuario2(hoja, fila, perfil)
+        if primero:
+            item_primero_usuario2(hoja, fila, perfil, modo)
+            primero = False
+        else:
+            item_siguiente_usuario2(hoja, fila, perfil)
 
         ir_a_siigo()
         enter()
@@ -486,6 +538,17 @@ def elegir_modo():
         print("Opción no válida, intenta de nuevo.")
 
 
+def liberar_teclas_modificadoras():
+    """Suelta explícitamente Alt/Ctrl/Shift/Win por si el script fue
+    interrumpido a mitad de camino (ej. con el 'botón de pánico' de
+    pyautogui) y alguna quedó presionada."""
+    for tecla in ("alt", "ctrl", "shift", "win"):
+        try:
+            pyautogui.keyUp(tecla)
+        except Exception:
+            pass
+
+
 if __name__ == "__main__":
     print("=== Ingreso automático de facturas de compra - Siigo ===\n")
 
@@ -506,5 +569,9 @@ if __name__ == "__main__":
         import traceback
         print("\n❌ Ocurrió un error y el proceso se detuvo:\n")
         traceback.print_exc()
+    finally:
+        # Se ejecuta SIEMPRE (éxito, error, o interrupción por el
+        # 'failsafe' de pyautogui), para no dejar Alt/Ctrl/Shift pegados.
+        liberar_teclas_modificadoras()
 
     input("\nPresiona Enter para cerrar esta ventana...")
